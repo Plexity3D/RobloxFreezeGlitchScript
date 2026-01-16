@@ -1,4 +1,4 @@
-# Instructions for Building FreezeTool
+# Instructions for Building RoFreeze
 
 ## Prerequisites
 1.  **Windows 10 or 11** (Required for the Acrylic Glass Effect).
@@ -15,11 +15,11 @@ To create a standalone `.exe` file that includes the GUI and logic:
 1.  Open a terminal (Command Prompt or PowerShell) in the project directory.
 2.  Run PyInstaller:
     ```bash
-    pyinstaller --noconfirm --onefile --windowed --name "FreezeTool" --add-data "FreezeLogic.py;." --add-data "BlurWindow.py;." main.py
+    pyinstaller --noconfirm --onefile --windowed --name "RoFreeze" --add-data "FreezeLogic.py;." --add-data "BlurWindow.py;." main.py
     ```
     *Note: The separator for `--add-data` on Windows is `;`. On Linux/Mac it is `:`.*
 
-3.  The executable will be located in the `dist` folder: `dist\FreezeTool.exe`.
+3.  The executable will be located in the `dist` folder: `dist\RoFreeze.exe`.
 
 ## Running from Source
 ```bash

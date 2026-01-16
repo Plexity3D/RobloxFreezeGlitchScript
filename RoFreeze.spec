@@ -9,7 +9,12 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('FreezeLogic.py', '.'), ('BlurWindow.py', '.')],
+    datas=[
+        ('src/core/freeze_logic.py', 'src/core'),
+        ('src/ui/blur_window.py', 'src/ui'),
+        ('RoFreezeIcon.png', '.'),
+        ('johny-goerend-NorthenLight-unsplash.jpg', '.')
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -29,7 +34,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='FreezeTool',
+    name='RoFreeze',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -42,4 +47,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='RoFreezeIcon.png'
 )
