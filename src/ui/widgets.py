@@ -143,7 +143,7 @@ class ModernButton(QPushButton):
 class KeyBadge(QWidget):
     """Styled keyboard shortcut badge."""
     
-    def __init__(self, key: str, label: str = "", parent=None):
+    def __init__(self, key: str, label: str = "", parent=None, tooltip: str = ""):
         super().__init__(parent)
         self._key = key
         self._label = label
@@ -151,6 +151,12 @@ class KeyBadge(QWidget):
         
         self.setFixedSize(80, 70)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        if tooltip:
+            self.setToolTip(tooltip)
+
+        # Set accessible name for screen readers
+        self.setAccessibleName(f"Key {key}, {label}")
     
     def set_pressed(self, pressed: bool):
         """Visual feedback for key press."""

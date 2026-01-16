@@ -119,6 +119,8 @@ class Gui(QMainWindow):
         self.close_btn = QPushButton("X")
         self.close_btn.setFixedSize(32, 32)
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.close_btn.setToolTip("Close Application")
+        self.close_btn.setAccessibleName("Close")
         self.close_btn.clicked.connect(self.close_app)
         self.close_btn.setStyleSheet("""
             QPushButton {
@@ -176,8 +178,8 @@ class Gui(QMainWindow):
         shortcuts_layout.setSpacing(20)
         shortcuts_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        self.key_q = KeyBadge("Q", "Set Point")
-        self.key_f3 = KeyBadge("F3", "Toggle")
+        self.key_q = KeyBadge("Q", "Set Point", tooltip="Press Q to set the freeze point")
+        self.key_f3 = KeyBadge("F3", "Toggle", tooltip="Press F3 to toggle freeze")
         
         shortcuts_layout.addWidget(self.key_q)
         shortcuts_layout.addWidget(self.key_f3)
@@ -202,6 +204,7 @@ class Gui(QMainWindow):
         
         # === Action Button ===
         self.toggle_btn = ModernButton("Get Started")
+        self.toggle_btn.setToolTip("Start or stop the freeze macro")
         self.toggle_btn.clicked.connect(self.toggle_tool)
         content_layout.addWidget(self.toggle_btn)
         
