@@ -21,14 +21,27 @@ except (ImportError, OSError):
 
 class FreezeTool:
     def __init__(self, status_callback=None):
+        self._stop_event = threading.Event()
         self.saved_coordinates = None
         self.saved_coordinatesBefore = None
         self.f3_pressed = False
-        self.spacebar_pressed = False
+        self._spacebar_pressed = False
         self.mouse_listener = None
         self.keyboard_listener = None
         self.running = False
         self.status_callback = status_callback
+
+    @property
+    def spacebar_pressed(self):
+        return self._spacebar_pressed
+
+    @spacebar_pressed.setter
+    def spacebar_pressed(self, value):
+        self._spacebar_pressed = value
+        if value:
+            self._stop_event.clear()
+        else:
+            self._stop_event.set()
 
     def log(self, message):
         print(message)
@@ -71,9 +84,12 @@ class FreezeTool:
         kb = keyboard.Controller()
         while self.spacebar_pressed and self.running:
             kb.press(keyboard.Key.space)
-            time.sleep(0.1)
+            if self._stop_event.wait(0.1):
+                kb.release(keyboard.Key.space)
+                break
             kb.release(keyboard.Key.space)
-            time.sleep(0.1)
+            if self._stop_event.wait(0.1):
+                break
 
     def on_press(self, key):
         try:
