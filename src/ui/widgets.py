@@ -196,6 +196,14 @@ class KeyBadge(QWidget):
 class StatusIndicator(QWidget):
     """Animated status indicator with pulsing ring."""
     
+    # Status colors defined as class constants to avoid recreation
+    STATUS_COLORS = {
+        "ready": QColor(150, 150, 160),
+        "running": QColor(34, 211, 238),
+        "frozen": QColor(45, 212, 191),
+        "stopped": QColor(200, 100, 100)
+    }
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._status = "ready"  # ready, running, frozen
@@ -243,13 +251,7 @@ class StatusIndicator(QWidget):
         center_y = self.height() // 2
         
         # Status colors
-        colors = {
-            "ready": QColor(150, 150, 160),
-            "running": QColor(34, 211, 238),
-            "frozen": QColor(45, 212, 191),
-            "stopped": QColor(200, 100, 100)
-        }
-        color = colors.get(self._status, colors["ready"])
+        color = self.STATUS_COLORS.get(self._status, self.STATUS_COLORS["ready"])
         
         # Draw pulsing rings for active states
         if self._status in ("running", "frozen"):
