@@ -33,6 +33,7 @@ class Gui(QMainWindow):
 
         self.drag_pos = None
         self._is_running = False
+        self._cached_bg_pixmap = None
 
         self.init_ui()
         self.setup_window()
@@ -119,6 +120,8 @@ class Gui(QMainWindow):
         self.close_btn = QPushButton("X")
         self.close_btn.setFixedSize(32, 32)
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.close_btn.setToolTip("Close Application")
+        self.close_btn.setAccessibleName("Close")
         self.close_btn.clicked.connect(self.close_app)
         self.close_btn.setStyleSheet("""
             QPushButton {
@@ -176,8 +179,8 @@ class Gui(QMainWindow):
         shortcuts_layout.setSpacing(20)
         shortcuts_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        self.key_q = KeyBadge("Q", "Set Point")
-        self.key_f3 = KeyBadge("F3", "Toggle")
+        self.key_q = KeyBadge("Q", "Set Point", tooltip="Press Q to set the freeze point")
+        self.key_f3 = KeyBadge("F3", "Toggle", tooltip="Press F3 to toggle freeze")
         
         shortcuts_layout.addWidget(self.key_q)
         shortcuts_layout.addWidget(self.key_f3)
@@ -202,6 +205,7 @@ class Gui(QMainWindow):
         
         # === Action Button ===
         self.toggle_btn = ModernButton("Get Started")
+        self.toggle_btn.setToolTip("Start or stop the freeze macro")
         self.toggle_btn.clicked.connect(self.toggle_tool)
         content_layout.addWidget(self.toggle_btn)
         
@@ -224,21 +228,28 @@ class Gui(QMainWindow):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
             
-            # Scale pixmap to cover the window
-            scaled = self._bg_pixmap.scaled(
-                self.size(),
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            
+            if self._cached_bg_pixmap is None or self._cached_bg_pixmap.size() != self.size():
+                # Scale pixmap to cover the window
+                self._cached_bg_pixmap = self._bg_pixmap.scaled(
+                    self.size(),
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+
             # Center the image
-            x = (self.width() - scaled.width()) // 2
-            y = (self.height() - scaled.height()) // 2
+            x = (self.width() - self._cached_bg_pixmap.width()) // 2
+            y = (self.height() - self._cached_bg_pixmap.height()) // 2
             
             # Draw with very low opacity
             painter.setOpacity(0.12)
-            painter.drawPixmap(x, y, scaled)
+            painter.drawPixmap(x, y, self._cached_bg_pixmap)
             painter.end()
+
+    def resizeEvent(self, event):
+        """Handle window resize events."""
+        super().resizeEvent(event)
+        self._cached_bg_pixmap = None  # Invalidate cache
+        self.update()  # Trigger a repaint
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
