@@ -6,13 +6,43 @@ import os
 import sys
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QLabel, 
                              QPushButton, QHBoxLayout, QFrame, QGraphicsOpacityEffect)
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QFont, QPixmap, QPainter, QColor, QLinearGradient, QIcon
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QFont, QPixmap, QPainter, QColor, QLinearGradient, QIcon, QPen
 
 from src.core.freeze_logic import FreezeTool
 from src.ui import blur_window as BlurWindow
 from src.ui.widgets import ModernButton, KeyBadge, StatusIndicator
 from src.ui.animated_logo import AnimatedLogo
+from src.ui.particles import ParticleSystem
+from src.ui.animations import AnimationHelper
+
+class GradientLabel(QLabel):
+    """Label with gradient text support."""
+    def __init__(self, text, parent=None, size=28):
+        super().__init__(text, parent)
+        font = QFont("Segoe UI", size)
+        font.setBold(True)
+        self.setFont(font)
+        self._colors = [QColor(34, 211, 238), QColor(34, 211, 238)] # Default solid
+    
+    def set_gradient_colors(self, c1, c2):
+        self._colors = [c1, c2]
+        self.update()
+        
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        gradient = QLinearGradient(0, 0, self.width(), 0)
+        gradient.setColorAt(0, self._colors[0])
+        gradient.setColorAt(1, self._colors[1])
+        
+        pen = QPen()
+        pen.setBrush(gradient)
+        painter.setPen(pen)
+        painter.setFont(self.font())
+        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.text())
+        painter.end()
 
 
 class LogicBridge(QObject):
@@ -65,6 +95,48 @@ class Gui(QMainWindow):
 
         # Apply glass effect after window handle exists
         QTimer.singleShot(100, self.enable_acrylic)
+        
+        # Entrance Animation
+        self.setWindowOpacity(0.0)
+        self._entrance_anim = QTimer.singleShot(200, self.animate_entrance)
+
+    def animate_entrance(self):
+        """Fade in and slide up slightly."""
+        # Fade in
+        try:
+            self.opacity_anim = QPropertyAnimation(self, b"windowOpacity")
+            self.opacity_anim.setDuration(500)
+            self.opacity_anim.setStartValue(0.0)
+            self.opacity_anim.setEndValue(1.0)
+            self.opacity_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+            self.opacity_anim.start()
+        except Exception as e:
+            print(f"Animation setup failed: {e}")
+            self.setWindowOpacity(1.0)
+        
+        # Staggered reveal for children
+        widgets = [self.animated_logo, self.title_label, 
+                  self.key_q, self.key_f3, 
+                  self.status_container, self.toggle_btn]
+        
+        for i, widget in enumerate(widgets):
+            # Initially invisible
+            op = QGraphicsOpacityEffect(widget)
+            widget.setGraphicsEffect(op)
+            op.setOpacity(0)
+            
+            # Fade in sequence
+            QTimer.singleShot(100 + (i * 80), lambda w=widget, e=op: self._fade_widget(w, e))
+            
+    def _fade_widget(self, widget, effect):
+        anim = QPropertyAnimation(effect, b"opacity")
+        anim.setDuration(600)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.Type.OutQuad)
+        anim.start()
+        # Keep reference to avoid gc
+        setattr(widget, '_fade_anim', anim)
 
     def center(self):
         qr = self.frameGeometry()
@@ -153,13 +225,10 @@ class Gui(QMainWindow):
         content_layout.addWidget(logo_container)
         
         # === Title ===
-        title_label = QLabel("RoFreeze")
-        title_font = QFont("Segoe UI", 28)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-        title_label.setStyleSheet("color: #ffffff;")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        content_layout.addWidget(title_label)
+        self.title_label = GradientLabel("RoFreeze")
+        # Define gradient colors
+        self.title_label.set_gradient_colors(QColor(34, 211, 238), QColor(45, 212, 191))
+        content_layout.addWidget(self.title_label)
         
         # === Description ===
         desc_label = QLabel("Macro to freeze the roblox client.")
@@ -190,8 +259,8 @@ class Gui(QMainWindow):
         content_layout.addSpacing(5)
         
         # === Status Indicator ===
-        status_container = QWidget()
-        status_layout = QHBoxLayout(status_container)
+        self.status_container = QWidget()
+        status_layout = QHBoxLayout(self.status_container)
         status_layout.setContentsMargins(0, 0, 0, 0)
         status_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -199,9 +268,13 @@ class Gui(QMainWindow):
         self.status_indicator.set_status("ready", "Ready")
         status_layout.addWidget(self.status_indicator)
         
-        content_layout.addWidget(status_container)
+        content_layout.addWidget(self.status_container)
         
         content_layout.addStretch()
+        
+        # Particles (Manual positioning in resizeEvent/setup)
+        self.particles = ParticleSystem(self.bg_container, count=25)
+        self.particles.lower() # Send to back
         
         # === Action Button ===
         self.toggle_btn = ModernButton("Get Started")
@@ -249,6 +322,11 @@ class Gui(QMainWindow):
         """Handle window resize events."""
         super().resizeEvent(event)
         self._cached_bg_pixmap = None  # Invalidate cache
+        
+        # Resize particles to match container
+        if hasattr(self, 'particles'):
+            self.particles.resize(self.bg_container.size())
+            
         self.update()  # Trigger a repaint
 
     def mousePressEvent(self, event):
@@ -271,13 +349,60 @@ class Gui(QMainWindow):
             self.status_indicator.set_status("running", message)
         elif "stopped" in lower_msg:
             self.status_indicator.set_status("stopped", message)
+            self._update_theme("stopped")
         elif "point set" in lower_msg or "saved" in lower_msg:
             # Brief visual feedback on key badge
             self.key_q.set_pressed(True)
             QTimer.singleShot(300, lambda: self.key_q.set_pressed(False))
             self.status_indicator.set_status("running", message)
+            # No theme change for point set
         else:
             self.status_indicator.set_status("ready", message)
+            self._update_theme("ready")
+
+    def _update_theme(self, status):
+        """Update window colors based on state."""
+        style = ""
+        c1, c2 = QColor(34, 211, 238), QColor(45, 212, 191) # Default Teal/Cyan
+        
+        if status == "running":
+            # Purple/Cyan energy
+            style = """
+                #BgContainer {
+                    background-color: rgba(15, 20, 35, 190);
+                    border-radius: 20px;
+                    border: 1px solid rgba(168, 85, 247, 0.4);
+                }
+            """
+            c1, c2 = QColor(168, 85, 247), QColor(34, 211, 238)
+            
+        elif status == "frozen":
+            # Icy Blue
+            style = """
+                #BgContainer {
+                    background-color: rgba(10, 25, 40, 190);
+                    border-radius: 20px;
+                    border: 1px solid rgba(96, 165, 250, 0.5);
+                }
+            """
+            c1, c2 = QColor(96, 165, 250), QColor(196, 235, 255)
+            
+        else: # Ready / Stopped
+            style = """
+                #BgContainer {
+                    background-color: rgba(10, 21, 32, 180);
+                    border-radius: 20px;
+                    border: 1px solid rgba(34, 211, 238, 0.2);
+                }
+            """
+            c1, c2 = QColor(34, 211, 238), QColor(45, 212, 191)
+            
+        self.bg_container.setStyleSheet(style)
+        self.title_label.set_gradient_colors(c1, c2)
+        
+        # Update button primary color via property if needed, but for now we rely on its internal state logic
+        # or we could extend ModernButton to accept a theme color.
+        # For simplicity, we keep the button consistent or let it handle its active state.
 
     def toggle_tool(self):
         if not self._is_running:

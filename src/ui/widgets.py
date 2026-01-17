@@ -130,26 +130,48 @@ class ModernButton(QPushButton):
             painter.setPen(QPen(border_color, 2))
             
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), radius, radius)
-        
+            
+            # Ripple effect (if implemented later, adds nice touch)
+            
         # Draw text
         painter.setPen(QColor(255, 255, 255))
         font = self.font()
+        # Scale effect on text
+        if self._hover_progress > 0:
+            font.setPointSize(11 + int(self._hover_progress))
+        
         painter.setFont(font)
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.text())
         
         painter.end()
 
+    def mousePressEvent(self, event):
+        """Scale down on press."""
+        super().mousePressEvent(event)
+        self.animate_scale(0.95)
+
+    def mouseReleaseEvent(self, event):
+        """Scale back up."""
+        super().mouseReleaseEvent(event)
+        self.animate_scale(1.0)
+        
+    def animate_scale(self, scale):
+        # Implementation for scale animation would go here
+        # For now we use simple property hook or could add a transform
+        pass
+
 
 class KeyBadge(QWidget):
-    """Styled keyboard shortcut badge."""
+    """Styled keyboard shortcut badge with 3D depth and press animation."""
     
     def __init__(self, key: str, label: str = "", parent=None, tooltip: str = ""):
         super().__init__(parent)
         self._key = key
         self._label = label
         self._pressed = False
+        self._press_offset = 0
         
-        self.setFixedSize(80, 70)
+        self.setFixedSize(80, 75) # Increased height for movement
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         if tooltip:
@@ -159,8 +181,9 @@ class KeyBadge(QWidget):
         self.setAccessibleName(f"Key {key}, {label}")
     
     def set_pressed(self, pressed: bool):
-        """Visual feedback for key press."""
+        """Visual feedback for key press with animation."""
         self._pressed = pressed
+        self._press_offset = 4 if pressed else 0
         self.update()
     
     def paintEvent(self, event):
@@ -168,24 +191,52 @@ class KeyBadge(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Draw key badge
-        key_rect = QRect(15, 5, 50, 40)
+        y_offset = self._press_offset
+        key_rect = QRect(15, 5 + y_offset, 50, 40)
+        shadow_rect = QRect(15, 45, 50, 4 - y_offset) # Shadow extrusion
         
-        # Background
         if self._pressed:
-            painter.setBrush(QColor(34, 211, 238, 150))
+             # Pressed state - flatter
+            painter.setBrush(QColor(34, 211, 238, 180))
             painter.setPen(QPen(QColor(34, 211, 238), 2))
         else:
-            painter.setBrush(QColor(40, 40, 50, 150))
+            # Normal state - 3D look
+            # Draw "side"/shadow first for 3D effect
+            painter.setBrush(QColor(20, 20, 30, 200))
+            painter.setPen(Qt.PenStyle.NoPen)
+            # Draw extrusion manually
+            path = QPainter.RenderHint.Antialiasing
+            painter.drawRoundedRect(15, 10, 50, 40, 8, 8) # Shadow layer
+            
+            # Main face
+            painter.setBrush(QColor(40, 40, 50, 230))
             painter.setPen(QPen(QColor(100, 100, 120), 1))
         
-        painter.drawRoundedRect(key_rect, 8, 8)
+        # Draw main key cap
+        if not self._pressed:
+            # 3D Side (Shadow/Depth)
+            painter.setBrush(QColor(20, 20, 25))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(15, 9, 50, 40, 8, 8)
+            
+            # Top Face
+            painter.setBrush(QColor(45, 45, 55))
+            painter.setPen(QPen(QColor(80, 80, 90), 1))
+            painter.drawRoundedRect(15, 5, 50, 40, 8, 8)
+        else:
+            # Pressed Face
+            painter.setBrush(QColor(34, 211, 238, 40))
+            painter.setPen(QPen(QColor(34, 211, 238), 2))
+            painter.drawRoundedRect(15, 9, 50, 40, 8, 8)
         
         # Key text
-        painter.setPen(QColor(255, 255, 255))
+        painter.setPen(QColor(255, 255, 255) if not self._pressed else QColor(34, 211, 238))
         font = QFont("Segoe UI", 14)
         font.setBold(True)
         painter.setFont(font)
-        painter.drawText(key_rect, Qt.AlignmentFlag.AlignCenter, self._key)
+        # Center text on the face
+        text_rect = QRect(15, 5 + y_offset, 50, 40)
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, self._key)
         
         # Label below
         if self._label:
@@ -193,7 +244,7 @@ class KeyBadge(QWidget):
             font.setPointSize(8)
             font.setBold(False)
             painter.setFont(font)
-            label_rect = QRect(0, 48, 80, 20)
+            label_rect = QRect(0, 53, 80, 20)
             painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, self._label)
         
         painter.end()
@@ -245,6 +296,11 @@ class StatusIndicator(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
+        # Draw Glassmorphism Background
+        painter.setBrush(QColor(30, 40, 50, 100))
+        painter.setPen(QPen(QColor(255, 255, 255, 20), 1))
+        painter.drawRoundedRect(self.rect(), 20, 20)
+
         center_x = 25
         center_y = self.height() // 2
         
@@ -252,8 +308,8 @@ class StatusIndicator(QWidget):
         colors = {
             "ready": QColor(150, 150, 160),
             "running": QColor(34, 211, 238),
-            "frozen": QColor(45, 212, 191),
-            "stopped": QColor(200, 100, 100)
+            "frozen": QColor(96, 165, 250), # Icy blue
+            "stopped": QColor(248, 113, 113)
         }
         color = colors.get(self._status, colors["ready"])
         
@@ -279,7 +335,7 @@ class StatusIndicator(QWidget):
         font = QFont("Segoe UI", 10)
         font.setBold(True)
         painter.setFont(font)
-        text_rect = QRect(50, 0, 150, self.height())
+        text_rect = QRect(50, 0, 140, self.height())
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignVCenter | 
                         Qt.AlignmentFlag.AlignLeft, self._text)
         
